@@ -66,9 +66,19 @@
             background: rgba(255,255,255,0.1); color: #aaa;
             font-size: 10px; padding: 5px 10px; border-radius: 5px; z-index: 200;
         }
+
+        /* 錯誤提示框 */
+        #error-msg {
+            position: fixed; top: 20%; left: 10%; width: 80%;
+            background: #ff4444; color: white; padding: 15px;
+            border-radius: 10px; z-index: 300; text-align: center;
+            font-size: 14px; display: none;
+        }
     </style>
 </head>
 <body>
+
+    <div id="error-msg"></div>
 
     <!-- 測試模式按鈕 -->
     <button id="test-trigger" class="test-mode-btn interactive hidden" onclick="forceTriggerMarker()">測試模式：模擬偵測成功</button>
@@ -91,8 +101,8 @@
                 <p class="text-[#ff6600] text-[10px] font-bold mb-6 animate-pulse">手機掃描上方 QR Code 開始測試</p>
             </div>
 
-            <button onclick="enterAR()" class="btn-aorus px-10 py-3 rounded-full font-bold text-sm shadow-xl shadow-[#ff6600]/20 interactive w-full">
-                在本機開啟相機挑戰
+            <button id="start-btn" onclick="enterAR()" class="btn-aorus px-10 py-3 rounded-full font-bold text-sm shadow-xl shadow-[#ff6600]/20 interactive w-full">
+                開啟相機挑戰
             </button>
             
             <div class="mt-8 text-[9px] text-gray-500">
@@ -132,7 +142,13 @@
         </div>
     </div>
 
-    <a-scene embedded arjs='sourceType: webcam; debugUIEnabled: false;' renderer="logarithmicDepthBuffer: true; antialias: true;" vr-mode-ui="enabled: false">
+    <!-- AR Scene -->
+    <a-scene 
+        embedded 
+        arjs='sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3;'
+        renderer="logarithmicDepthBuffer: true; antialias: true;" 
+        vr-mode-ui="enabled: false">
+        
         <a-marker preset="hiro" id="stealth-marker">
             <a-entity>
                 <a-box position="0 0.5 0" material="color: #000; opacity: 0.5; transparent: true" scale="1.4 1.6 1.4">
@@ -157,14 +173,16 @@
     <script>
         // 初始化 QR Code
         window.addEventListener('load', function() {
-            new QRCode(document.getElementById("qrcode"), {
-                text: "https://toniahong3729.github.io/arpc/",
-                width: 160,
-                height: 160,
-                colorDark : "#000000",
-                colorLight : "#ffffff",
-                correctLevel : QRCode.CorrectLevel.H
-            });
+            try {
+                new QRCode(document.getElementById("qrcode"), {
+                    text: "https://toniahong3729.github.io/arpc/",
+                    width: 140,
+                    height: 140,
+                    colorDark : "#000000",
+                    colorLight : "#ffffff",
+                    correctLevel : QRCode.CorrectLevel.H
+                });
+            } catch(e) { console.error("QR Code Error", e); }
         });
 
         const questions = [
@@ -178,11 +196,30 @@
         let currentQuestion = 0;
         let markerFound = false;
 
-        function enterAR() {
-            document.getElementById('landing-page').classList.add('hidden');
-            document.getElementById('ui-container').classList.remove('hidden');
-            document.getElementById('ar-instruction').classList.remove('hidden');
-            document.getElementById('test-trigger').classList.remove('hidden');
+        function showError(msg) {
+            const el = document.getElementById('error-msg');
+            el.innerText = msg;
+            el.style.display = 'block';
+            setTimeout(() => { el.style.display = 'none'; }, 5000);
+        }
+
+        async function enterAR() {
+            // 嘗試啟動相機權限檢查
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                stream.getTracks().forEach(track => track.stop()); // 僅檢查用，隨即關閉交給 AR.js
+                
+                document.getElementById('landing-page').classList.add('hidden');
+                document.getElementById('ui-container').classList.remove('hidden');
+                document.getElementById('ar-instruction').classList.remove('hidden');
+                document.getElementById('test-trigger').classList.remove('hidden');
+                
+                // 強制觸發一次 resize 確保畫面出來
+                window.dispatchEvent(new Event('resize'));
+            } catch (err) {
+                showError("無法存取相機！請在瀏覽器設定中允許相機權限，並確保使用 HTTPS 連線。");
+                console.error("Camera access denied:", err);
+            }
         }
 
         document.getElementById('stealth-marker').addEventListener('markerFound', () => {
@@ -206,7 +243,7 @@
                     document.getElementById('test-trigger').classList.add('hidden');
                     document.getElementById('quiz-screen').classList.remove('hidden');
                     loadQuestion();
-                }, 2500);
+                }, 2000);
             }
         }
 
@@ -243,6 +280,18 @@
             document.getElementById('quiz-screen').classList.add('hidden');
             document.getElementById('medal-screen').classList.remove('hidden');
         }
+
+        // 監聽螢幕旋轉或尺寸改變，自動修復 AR 畫布
+        window.addEventListener('resize', function() {
+            const scene = document.querySelector('a-scene');
+            if (scene) {
+                const canvas = scene.canvas;
+                if (canvas) {
+                    canvas.style.width = "100%";
+                    canvas.style.height = "100%";
+                }
+            }
+        });
     </script>
 </body>
 </html>
