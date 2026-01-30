@@ -63,8 +63,16 @@
 
         .hidden { display: none !important; }
 
-        /* 修正 A-Frame 產生的 Canvas 樣式 */
+        /* 修正 A-Frame 產面的 Canvas 樣式 */
         .a-canvas { z-index: -5 !important; }
+
+        /* Hiro Marker 範例圖示樣式 */
+        .marker-sample {
+            width: 80px; height: 80px; background: white; border: 10px solid black;
+            display: flex; align-items: center; justify-content: center;
+            margin: 0 auto 15px;
+        }
+        .marker-sample span { color: black; font-weight: bold; font-size: 14px; font-family: sans-serif; }
     </style>
 </head>
 <body>
@@ -96,7 +104,13 @@
         <!-- 掃描提示框 -->
         <div id="start-panel" class="aorus-panel">
             <h2 class="text-[#ff6600] font-bold mb-4">準備掃描</h2>
-            <p class="text-sm text-gray-300 mb-6">請將鏡頭對準電腦螢幕上的 <br><strong>Hiro Marker</strong></p>
+            
+            <!-- 新增的可視化 Marker 提示 -->
+            <div class="marker-sample">
+                <span>HIRO</span>
+            </div>
+
+            <p class="text-sm text-gray-300 mb-6">請將鏡頭對準電腦螢幕上的 <br><strong>Hiro Marker (如上圖)</strong></p>
             <div class="w-12 h-12 border-2 border-[#ff6600] border-dashed mx-auto animate-pulse"></div>
         </div>
 
@@ -162,9 +176,11 @@
             // 綁定事件
             setTimeout(() => {
                 const marker = document.getElementById('stealth-marker');
-                marker.addEventListener('markerFound', () => {
-                    if(!markerFound) triggerQuiz();
-                });
+                if (marker) {
+                    marker.addEventListener('markerFound', () => {
+                        if(!markerFound) triggerQuiz();
+                    });
+                }
             }, 1000);
         }
 
