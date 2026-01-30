@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>GIGABYTE STEALTH AR 挑戰</title>
+    <!-- A-Frame and AR.js libraries -->
+    <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+    <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap');
+        
+        body { margin: 0; overflow: hidden; font-family: 'Orbitron', sans-serif; background: #000; }
+        .ui-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+        .interactive { pointer-events: auto; }
+        .hidden { display: none !important; }
+        
+        .aorus-bg { background: rgba(0, 0, 0, 0.9); border: 1px solid #ff6600; box-shadow: 0 0 30px rgba(255, 102, 0, 0.4); }
+        .btn-aorus { 
+            background: linear-gradient(135deg, #ff6600 0%, #cc5200 100%); 
+            color: white; 
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        #landing-page {
+            position: fixed;
+            z-index: 200;
+            background: radial-gradient(circle at center, #1a1a1a 0%, #000 100%);
+            width: 100%; height: 100%;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            color: white; padding: 20px;
+        }
+
+        #ar-instruction {
+            position: absolute; bottom: 40px; width: 80%; left: 10%;
+            text-align: center; color: white; background: rgba(0, 0, 0, 0.7);
+            border: 1px solid #ff6600;
+            padding: 12px; border-radius: 30px; font-size: 13px; z-index: 50;
+        }
+        
+        .test-mode-btn {
+            position: absolute; top: 20px; right: 20px;
+            background: rgba(255,255,255,0.1); color: #aaa;
+            font-size: 10px; padding: 5px 10px; border-radius: 5px; z-index: 200;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 測試模式按鈕 (僅測試用) -->
+    <button id="test-trigger" class="test-mode-btn interactive hidden" onclick="forceTriggerMarker()">測試模式：模擬偵測成功</button>
+
+    <div id="landing-page">
+        <div class="text-center px-6 max-w-md">
+            <div class="mb-8 flex justify-center">
+                <div class="w-20 h-20 bg-[#ff6600] rounded-full flex items-center justify-center shadow-lg shadow-[#ff6600]/50">
+                    <span class="font-bold text-2xl text-black">GS</span>
+                </div>
+            </div>
+            <h1 class="text-3xl font-bold mb-2 tracking-tighter">GIGABYTE <span class="text-[#ff6600]">STEALTH</span></h1>
+            <p class="text-gray-400 text-sm mb-12">隱形組裝 · 極致風流 · AR 挑戰</p>
+            
+            <button onclick="enterAR()" class="btn-aorus px-12 py-4 rounded-full font-bold text-lg shadow-xl shadow-[#ff6600]/20 interactive">
+                開啟相機開始挑戰
+            </button>
+            
+            <div class="mt-12 text-[10px] text-gray-500 text-center">
+                <p>※ 請確保已在設定中允許瀏覽器存取相機</p>
+                <p class="mt-2">若手機無法連線，請將此 HTML 檔案上傳至伺服器測試</p>
+            </div>
+        </div>
+    </div>
+
+    <div id="ui-container" class="ui-overlay hidden">
+        <!-- 等待偵測畫面 -->
+        <div id="start-screen" class="interactive p-8 aorus-bg rounded-xl text-center max-w-sm mx-4">
+            <h2 class="text-xl font-bold text-[#ff6600] mb-4">尋找 STEALTH 標誌</h2>
+            <p class="text-white/80 mb-6 text-sm">請將鏡頭對準電腦上的測試標誌 (Hiro Marker)。</p>
+            <div class="animate-pulse flex justify-center mb-4">
+                <div class="w-16 h-16 border-2 border-[#ff6600] rounded-lg"></div>
+            </div>
+        </div>
+
+        <!-- 問答畫面 -->
+        <div id="quiz-screen" class="interactive p-6 aorus-bg rounded-xl w-11/12 max-w-md hidden">
+            <div class="flex justify-between items-center mb-6">
+                <span id="quiz-progress" class="bg-[#ff6600] text-black px-2 py-0.5 rounded text-[10px] font-bold">1 / 5</span>
+                <span class="text-white/50 text-[10px] tracking-widest uppercase">STEALTH Quiz</span>
+            </div>
+            <h2 id="question-text" class="text-lg text-white font-bold mb-8 text-left leading-snug"></h2>
+            <div id="options-container" class="grid gap-4"></div>
+        </div>
+
+        <!-- 領獎畫面 -->
+        <div id="medal-screen" class="interactive p-8 aorus-bg rounded-2xl text-center max-w-sm mx-4 hidden">
+            <svg class="w-24 h-24 text-yellow-500 mx-auto mb-6" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path>
+            </svg>
+            <h2 class="text-2xl font-bold text-yellow-500 mb-2">挑戰全對！</h2>
+            <div class="bg-white/5 p-6 rounded-xl border border-white/10 mb-8">
+                <p class="text-[#ff6600] text-3xl font-bold tracking-widest">STEALTH-PRO</p>
+                <p class="text-xs text-white/60 mt-4">憑此畫面至技嘉攤位領取贈品</p>
+            </div>
+            <button onclick="location.reload()" class="text-white/30 text-[10px] underline">重新測試</button>
+        </div>
+    </div>
+
+    <!-- AR 場景 -->
+    <a-scene embedded arjs='sourceType: webcam; debugUIEnabled: false;' renderer="logarithmicDepthBuffer: true; antialias: true;" vr-mode-ui="enabled: false">
+        <a-marker preset="hiro" id="stealth-marker">
+            <a-entity>
+                <a-box position="0 0.5 0" material="color: #000; opacity: 0.5; transparent: true" scale="1.4 1.6 1.4">
+                    <a-box position="0 0 0" scale="0.9 0.9 0.9" material="color: #111; emissive: #ff6600; emissiveIntensity: 0.2"></a-box>
+                </a-box>
+                <!-- 風流粒子 -->
+                <a-entity>
+                    <a-entity position="-1 0.2 0.5" animation="property: position; to: 0.5 0.2 0.5; dur: 1200; loop: true; easing: linear">
+                        <a-sphere radius="0.05" material="color: #00ffff; shader: flat"></a-sphere>
+                    </a-entity>
+                    <a-entity position="0.5 0.8 0" animation="property: position; to: 1.2 1.5 0; dur: 800; loop: true; easing: easeOutQuad">
+                        <a-sphere radius="0.03" material="color: #ff3300; shader: flat"></a-sphere>
+                    </a-entity>
+                </a-entity>
+                <a-text value="STEALTH OPTIMIZED" position="0 1.8 0" align="center" color="#ff6600" scale="0.8 0.8 0.8"></a-text>
+            </a-entity>
+        </a-marker>
+        <a-entity camera></a-entity>
+    </a-scene>
+
+    <div id="ar-instruction" class="hidden">請對準測試標誌 (Hiro Marker)</div>
+
+    <script>
+        const questions = [
+            { q: "技嘉 STEALTH 系列最主要的設計核心是什麼？", o: ["無線傳輸", "背插式介面設計", "超大型散熱扇", "全透明外殼"], a: 1 },
+            { q: "背插式設計如何影響電腦散熱？", o: ["增加風扇轉速", "降低電力消耗", "理線整潔並優化風道", "增加機殼重量"], a: 2 },
+            { q: "STEALTH 系列通常搭配哪個高端子品牌？", o: ["AORUS", "AERO", "EAGLE", "GAMING"], a: 0 },
+            { q: "剛才 AR 看到的藍色粒子代表什麼？", o: ["靜電排出", "低溫冷空氣吸入", "WiFi 訊號流動", "漏水警告"], a: 1 },
+            { q: "使用 STEALTH 方案進行組裝，主要能解決什麼痛點？", o: ["理線繁雜與視覺混亂", "硬碟空間不足", "顯示卡太重", "螢幕解析度不足"], a: 0 }
+        ];
+
+        let currentQuestion = 0;
+        let markerFound = false;
+
+        function enterAR() {
+            document.getElementById('landing-page').classList.add('hidden');
+            document.getElementById('ui-container').classList.remove('hidden');
+            document.getElementById('ar-instruction').classList.remove('hidden');
+            document.getElementById('test-trigger').classList.remove('hidden');
+        }
+
+        // 當真正偵測到標誌時
+        document.getElementById('stealth-marker').addEventListener('markerFound', () => {
+            handleMarkerFound();
+        });
+
+        // 測試模式按鈕：手動觸發
+        function forceTriggerMarker() {
+            handleMarkerFound();
+        }
+
+        function handleMarkerFound() {
+            if (!markerFound) {
+                markerFound = true;
+                document.getElementById('ar-instruction').innerText = "偵測成功！啟動測試中...";
+                document.getElementById('ar-instruction').style.borderColor = "#4CAF50";
+                document.getElementById('ar-instruction').style.color = "#4CAF50";
+                
+                setTimeout(() => {
+                    document.getElementById('start-screen').classList.add('hidden');
+                    document.getElementById('ar-instruction').classList.add('hidden');
+                    document.getElementById('test-trigger').classList.add('hidden');
+                    document.getElementById('quiz-screen').classList.remove('hidden');
+                    loadQuestion();
+                }, 2500);
+            }
+        }
+
+        function loadQuestion() {
+            const q = questions[currentQuestion];
+            document.getElementById('quiz-progress').innerText = `${currentQuestion + 1} / 5`;
+            document.getElementById('question-text').innerText = q.q;
+            const container = document.getElementById('options-container');
+            container.innerHTML = '';
+            q.o.forEach((option, index) => {
+                const btn = document.createElement('button');
+                btn.className = "w-full text-left p-4 rounded-lg bg-white/5 text-white border border-white/10 hover:border-[#ff6600] transition-all interactive";
+                btn.innerText = option;
+                btn.onclick = () => checkAnswer(index, btn);
+                container.appendChild(btn);
+            });
+        }
+
+        function checkAnswer(idx, btn) {
+            if (idx === questions[currentQuestion].a) {
+                btn.classList.add('bg-green-600', 'border-green-600');
+                setTimeout(() => {
+                    currentQuestion++;
+                    if (currentQuestion < questions.length) loadQuestion();
+                    else showMedal();
+                }, 500);
+            } else {
+                btn.classList.add('bg-red-600', 'border-red-600');
+                setTimeout(() => btn.classList.remove('bg-red-600', 'border-red-600'), 500);
+            }
+        }
+
+        function showMedal() {
+            document.getElementById('quiz-screen').classList.add('hidden');
+            document.getElementById('medal-screen').classList.remove('hidden');
+        }
+    </script>
+</body>
+</html>
