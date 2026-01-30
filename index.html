@@ -16,24 +16,18 @@
         body, html { 
             margin: 0; padding: 0; width: 100%; height: 100%; 
             overflow: hidden; font-family: 'Orbitron', sans-serif; background: #000; 
-            position: fixed;
-            left: 0; top: 0;
+            position: fixed; left: 0; top: 0; right: 0; bottom: 0;
         }
 
-        /* 絕對強制全螢幕：解決畫面縮小與右側遮擋 */
-        #scene-container, a-scene, .a-canvas, video {
-            position: fixed !important;
+        /* 終極修復：強制撐開所有 AR 相關元件 */
+        video, .a-canvas, a-scene {
+            width: 100% !important;
+            height: 100% !important;
             top: 0 !important;
             left: 0 !important;
-            width: 100vw !important;
-            height: 100vh !important;
-            margin: 0 !important;
-            padding: 0 !important;
+            position: fixed !important;
             object-fit: cover !important;
-        }
-
-        video {
-            z-index: -10 !important;
+            margin: 0 !important;
         }
 
         #landing-page {
@@ -53,54 +47,51 @@
         .ui-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             pointer-events: none; z-index: 100;
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
         }
 
         .aorus-panel { 
             background: rgba(0, 0, 0, 0.85); border: 1px solid #ff6600; 
             color: white; padding: 25px; border-radius: 15px; text-align: center;
             pointer-events: auto; backdrop-filter: blur(10px); width: 85%; max-width: 360px;
-            transition: all 0.5s ease;
+            position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
         }
 
-        /* 縮小後的提示狀態 */
-        .aorus-panel.minimized {
-            transform: translateY(-30vh) scale(0.7);
-            opacity: 0.6;
-            pointer-events: none;
+        /* 頂部掃描提示 */
+        #top-guide {
+            position: absolute; top: 30px; left: 0; width: 100%;
+            display: flex; flex-direction: column; align-items: center;
+            z-index: 60;
+        }
+
+        .top-label {
+            background: rgba(255, 102, 0, 0.9); color: black;
+            padding: 4px 15px; border-radius: 20px; font-size: 10px; font-weight: bold;
+            margin-bottom: 8px; box-shadow: 0 0 10px #ff6600;
         }
 
         #ar-instruction {
-            position: absolute; bottom: 40px; width: 85%;
-            background: rgba(0,0,0,0.85); border: 1px solid #ff6600;
-            color: #ff6600; padding: 12px; border-radius: 30px;
-            font-size: 13px; text-align: center; z-index: 50;
-            box-shadow: 0 0 15px rgba(255, 102, 0, 0.2);
+            background: rgba(0,0,0,0.7); border: 1px solid #ff6600;
+            color: #ff6600; padding: 10px 20px; border-radius: 30px;
+            font-size: 12px; text-align: center;
+        }
+
+        /* 掃描引導框 (大邊框，不遮擋中央) */
+        .scan-viewfinder {
+            position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+            width: 70vw; height: 70vw; max-width: 280px; max-height: 280px;
+            border: 1px solid rgba(255, 102, 0, 0.3);
+            border-radius: 20px; pointer-events: none;
+        }
+        .scan-viewfinder::before {
+            content: ''; position: absolute; width: 30px; height: 30px;
+            top: -2px; left: -2px; border-top: 4px solid #ff6600; border-left: 4px solid #ff6600; border-radius: 10px 0 0 0;
+        }
+        .scan-viewfinder::after {
+            content: ''; position: absolute; width: 30px; height: 30px;
+            bottom: -2px; right: -2px; border-bottom: 4px solid #ff6600; border-right: 4px solid #ff6600; border-radius: 0 0 10px 0;
         }
 
         .hidden { display: none !important; }
-
-        /* 掃描引導框 */
-        .scan-guide {
-            position: absolute;
-            width: 250px; height: 250px;
-            border: 2px solid rgba(255, 102, 0, 0.5);
-            border-radius: 20px;
-            display: flex; align-items: center; justify-content: center;
-            z-index: 20;
-        }
-        .scan-guide::before, .scan-guide::after {
-            content: ''; position: absolute; width: 40px; height: 40px; border: 4px solid #ff6600;
-        }
-        .scan-guide::before { top: -2px; left: -2px; border-right: 0; border-bottom: 0; border-radius: 15px 0 0 0; }
-        .scan-guide::after { bottom: -2px; right: -2px; border-left: 0; border-top: 0; border-radius: 0 0 15px 0; }
-
-        .marker-sample {
-            width: 80px; height: 80px; background: white; border: 8px solid black;
-            display: flex; align-items: center; justify-content: center;
-            margin: 0 auto 10px;
-        }
-        .marker-sample span { color: black; font-weight: bold; font-size: 14px; font-family: sans-serif; }
 
         #error-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -118,8 +109,8 @@
     <div id="error-overlay" class="hidden">
         <div class="text-[#ff6600] text-5xl mb-6">⚠️</div>
         <h2 class="text-xl font-bold mb-4">相機啟動異常</h2>
-        <p id="error-text" class="text-sm text-gray-400 mb-8">請嘗試在 Safari 或 Chrome 中開啟此網頁。</p>
-        <button onclick="location.reload()" class="btn-aorus text-sm">重新嘗試</button>
+        <p class="text-sm text-gray-400 mb-8 font-sans">請確保已在瀏覽器設定中允許相機權限。</p>
+        <button onclick="location.reload()" class="btn-aorus text-sm">重新整理</button>
     </div>
 
     <!-- 啟動主畫面 -->
@@ -131,38 +122,34 @@
                 </div>
             </div>
             <h1 class="text-3xl font-bold text-white mb-2">STEALTH <span class="text-[#ff6600]">AR</span></h1>
-            <p class="text-gray-400 text-xs tracking-widest mb-12 uppercase">GIGABYTE INTERACTIVE</p>
+            <p class="text-gray-400 text-xs tracking-widest mb-12 uppercase font-sans">GIGABYTE INTERACTIVE</p>
             
             <button id="main-start-btn" onclick="requestCameraAndInit()" class="btn-aorus">
-                進入 AR 挑戰
+                開始活動
             </button>
-            <p class="mt-8 text-[10px] text-gray-500 font-sans">v2.2 - 介面優化版</p>
+            <p class="mt-8 text-[10px] text-gray-600 font-sans tracking-widest">v2.3 STABLE</p>
         </div>
     </div>
 
     <!-- UI 重疊層 -->
     <div id="ui-container" class="ui-overlay hidden">
         
-        <!-- 掃描引導框 (幫助對準) -->
-        <div id="scan-viewfinder" class="scan-guide">
-            <div class="w-full h-0.5 bg-[#ff6600]/30 animate-bounce"></div>
+        <!-- 頂部提示 (取代中央大面板) -->
+        <div id="top-guide">
+            <div class="top-label">STEALTH SCANNER</div>
+            <div id="ar-instruction">請將 Hiro 標誌對準方框中央</div>
         </div>
 
-        <div id="ar-instruction">請尋找並對準 Hiro Marker</div>
-
-        <!-- 掃描提示框 -->
-        <div id="start-panel" class="aorus-panel">
-            <h2 class="text-[#ff6600] font-bold mb-3">準備掃描</h2>
-            <div class="marker-sample">
-                <span>HIRO</span>
+        <!-- 透明掃描方框 -->
+        <div id="scan-frame" class="scan-viewfinder">
+            <div class="absolute inset-0 flex items-center justify-center">
+                <div class="w-full h-[1px] bg-[#ff6600]/20 animate-pulse"></div>
             </div>
-            <p class="text-xs text-gray-300 mb-4 font-sans">請將鏡頭對準電腦上的<br><strong>Hiro Marker (如上圖)</strong></p>
-            <div class="text-[10px] text-[#ff6600] animate-pulse">正在搜尋中...</div>
         </div>
 
         <!-- 問答面板 -->
         <div id="quiz-panel" class="aorus-panel hidden text-left">
-            <div id="quiz-progress" class="text-[10px] text-[#ff6600] mb-2 font-bold text-right">Q: 1 / 5</div>
+            <div id="quiz-progress" class="text-[10px] text-[#ff6600] mb-2 font-bold text-right font-sans">Q: 1 / 5</div>
             <h2 id="question-text" class="text-base font-bold mb-6"></h2>
             <div id="options-container" class="grid gap-3"></div>
         </div>
@@ -194,8 +181,9 @@
 
         async function requestCameraAndInit() {
             try {
+                // 檢查相機權限
                 const stream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } } 
+                    video: { facingMode: 'environment' } 
                 });
                 stream.getTracks().forEach(track => track.stop());
                 initAR();
@@ -209,21 +197,14 @@
             setTimeout(() => {
                 document.getElementById('landing-page').classList.add('hidden');
                 document.getElementById('ui-container').classList.remove('hidden');
-                
-                // 3 秒後縮小提示框，讓用戶看清楚相機畫面
-                setTimeout(() => {
-                    if(!markerFound) {
-                        document.getElementById('start-panel').classList.add('minimized');
-                    }
-                }, 3000);
             }, 500);
 
+            // 修正：移除 embedded，讓 A-Frame 全權處理佈局
             const sceneHTML = `
                 <a-scene 
-                    embedded 
                     loading-screen="enabled: false"
                     arjs="sourceType: webcam; debugUIEnabled: false; displayWidth: ${window.innerWidth}; displayHeight: ${window.innerHeight};" 
-                    renderer="antialias: true; alpha: true;" 
+                    renderer="antialias: true; alpha: true; precision: medium;" 
                     vr-mode-ui="enabled: false">
                     
                     <a-marker preset="hiro" id="stealth-marker">
@@ -240,23 +221,20 @@
             `;
             document.getElementById('scene-container').innerHTML = sceneHTML;
 
-            // 強制修正佈局，確保不留黑邊或被擠壓
-            const fix = () => {
-                const els = ['video', '.a-canvas'];
-                els.forEach(selector => {
-                    const el = document.querySelector(selector);
+            // 每秒執行一次布局修復，對抗移動設備的動態 UI 變化
+            const forceLayout = () => {
+                const els = ['video', '.a-canvas', 'a-scene'];
+                els.forEach(s => {
+                    const el = document.querySelector(s);
                     if (el) {
-                        el.style.width = window.innerWidth + 'px';
-                        el.style.height = window.innerHeight + 'px';
-                        el.style.position = 'fixed';
-                        el.style.top = '0';
-                        el.style.left = '0';
+                        el.style.setProperty('width', window.innerWidth + 'px', 'important');
+                        el.style.setProperty('height', window.innerHeight + 'px', 'important');
                     }
                 });
             };
-            
-            setInterval(fix, 1000);
+            setInterval(forceLayout, 1000);
 
+            // 監聽掃描
             setTimeout(() => {
                 const marker = document.querySelector('#stealth-marker');
                 if (marker) {
@@ -264,22 +242,21 @@
                         if(!markerFound) triggerQuiz();
                     });
                 }
-            }, 2000);
+            }, 2500);
         }
 
         function triggerQuiz() {
             markerFound = true;
-            document.getElementById('ar-instruction').innerText = "偵測成功！";
-            document.getElementById('ar-instruction').style.color = "#4CAF50";
-            document.getElementById('scan-viewfinder').classList.add('hidden');
+            document.getElementById('ar-instruction').innerText = "辨識成功！開始挑戰";
+            document.getElementById('ar-instruction').style.background = "#4CAF50";
+            document.getElementById('ar-instruction').style.color = "white";
+            document.getElementById('scan-frame').classList.add('hidden');
             
             setTimeout(() => {
-                document.getElementById('start-panel').classList.add('hidden');
-                document.getElementById('ar-instruction').classList.add('hidden');
+                document.getElementById('top-guide').classList.add('hidden');
                 document.getElementById('quiz-panel').classList.remove('hidden');
-                document.getElementById('quiz-panel').classList.remove('minimized');
                 loadQuestion();
-            }, 800);
+            }, 1000);
         }
 
         function loadQuestion() {
