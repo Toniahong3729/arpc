@@ -8,6 +8,8 @@
     <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
     <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- QRCode.js Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap');
         
@@ -41,6 +43,15 @@
             width: 100%; height: 100%;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
             color: white; padding: 20px;
+            overflow-y: auto;
+        }
+
+        #qr-container {
+            background: white;
+            padding: 12px;
+            border-radius: 8px;
+            margin: 20px 0;
+            box-shadow: 0 0 20px rgba(255, 102, 0, 0.2);
         }
 
         #ar-instruction {
@@ -59,32 +70,38 @@
 </head>
 <body>
 
-    <!-- 測試模式按鈕 (僅測試用) -->
+    <!-- 測試模式按鈕 -->
     <button id="test-trigger" class="test-mode-btn interactive hidden" onclick="forceTriggerMarker()">測試模式：模擬偵測成功</button>
 
     <div id="landing-page">
         <div class="text-center px-6 max-w-md">
-            <div class="mb-8 flex justify-center">
-                <div class="w-20 h-20 bg-[#ff6600] rounded-full flex items-center justify-center shadow-lg shadow-[#ff6600]/50">
-                    <span class="font-bold text-2xl text-black">GS</span>
+            <div class="mb-6 flex justify-center">
+                <div class="w-16 h-16 bg-[#ff6600] rounded-full flex items-center justify-center shadow-lg shadow-[#ff6600]/50">
+                    <span class="font-bold text-xl text-black">GS</span>
                 </div>
             </div>
-            <h1 class="text-3xl font-bold mb-2 tracking-tighter">GIGABYTE <span class="text-[#ff6600]">STEALTH</span></h1>
-            <p class="text-gray-400 text-sm mb-12">隱形組裝 · 極致風流 · AR 挑戰</p>
+            <h1 class="text-2xl font-bold mb-1 tracking-tighter text-white">GIGABYTE <span class="text-[#ff6600]">STEALTH</span></h1>
+            <p class="text-gray-400 text-[10px] mb-6">隱形組裝 · 極致風流 · AR 互動體驗</p>
             
-            <button onclick="enterAR()" class="btn-aorus px-12 py-4 rounded-full font-bold text-lg shadow-xl shadow-[#ff6600]/20 interactive">
-                開啟相機開始挑戰
+            <!-- 自動生成的 QR Code -->
+            <div class="flex flex-col items-center">
+                <div id="qr-container">
+                    <div id="qrcode"></div>
+                </div>
+                <p class="text-[#ff6600] text-[10px] font-bold mb-6 animate-pulse">手機掃描上方 QR Code 開始測試</p>
+            </div>
+
+            <button onclick="enterAR()" class="btn-aorus px-10 py-3 rounded-full font-bold text-sm shadow-xl shadow-[#ff6600]/20 interactive w-full">
+                在本機開啟相機挑戰
             </button>
             
-            <div class="mt-12 text-[10px] text-gray-500 text-center">
-                <p>※ 請確保已在設定中允許瀏覽器存取相機</p>
-                <p class="mt-2">若手機無法連線，請將此 HTML 檔案上傳至伺服器測試</p>
+            <div class="mt-8 text-[9px] text-gray-500">
+                <p>正式網址：https://toniahong3729.github.io/arpc/</p>
             </div>
         </div>
     </div>
 
     <div id="ui-container" class="ui-overlay hidden">
-        <!-- 等待偵測畫面 -->
         <div id="start-screen" class="interactive p-8 aorus-bg rounded-xl text-center max-w-sm mx-4">
             <h2 class="text-xl font-bold text-[#ff6600] mb-4">尋找 STEALTH 標誌</h2>
             <p class="text-white/80 mb-6 text-sm">請將鏡頭對準電腦上的測試標誌 (Hiro Marker)。</p>
@@ -93,7 +110,6 @@
             </div>
         </div>
 
-        <!-- 問答畫面 -->
         <div id="quiz-screen" class="interactive p-6 aorus-bg rounded-xl w-11/12 max-w-md hidden">
             <div class="flex justify-between items-center mb-6">
                 <span id="quiz-progress" class="bg-[#ff6600] text-black px-2 py-0.5 rounded text-[10px] font-bold">1 / 5</span>
@@ -103,9 +119,8 @@
             <div id="options-container" class="grid gap-4"></div>
         </div>
 
-        <!-- 領獎畫面 -->
         <div id="medal-screen" class="interactive p-8 aorus-bg rounded-2xl text-center max-w-sm mx-4 hidden">
-            <svg class="w-24 h-24 text-yellow-500 mx-auto mb-6" fill="currentColor" viewBox="0 0 20 20">
+            <svg class="w-20 h-20 text-yellow-500 mx-auto mb-6" fill="currentColor" viewBox="0 0 20 20">
                 <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path>
             </svg>
             <h2 class="text-2xl font-bold text-yellow-500 mb-2">挑戰全對！</h2>
@@ -117,14 +132,12 @@
         </div>
     </div>
 
-    <!-- AR 場景 -->
     <a-scene embedded arjs='sourceType: webcam; debugUIEnabled: false;' renderer="logarithmicDepthBuffer: true; antialias: true;" vr-mode-ui="enabled: false">
         <a-marker preset="hiro" id="stealth-marker">
             <a-entity>
                 <a-box position="0 0.5 0" material="color: #000; opacity: 0.5; transparent: true" scale="1.4 1.6 1.4">
                     <a-box position="0 0 0" scale="0.9 0.9 0.9" material="color: #111; emissive: #ff6600; emissiveIntensity: 0.2"></a-box>
                 </a-box>
-                <!-- 風流粒子 -->
                 <a-entity>
                     <a-entity position="-1 0.2 0.5" animation="property: position; to: 0.5 0.2 0.5; dur: 1200; loop: true; easing: linear">
                         <a-sphere radius="0.05" material="color: #00ffff; shader: flat"></a-sphere>
@@ -142,6 +155,18 @@
     <div id="ar-instruction" class="hidden">請對準測試標誌 (Hiro Marker)</div>
 
     <script>
+        // 初始化 QR Code
+        window.addEventListener('load', function() {
+            new QRCode(document.getElementById("qrcode"), {
+                text: "https://toniahong3729.github.io/arpc/",
+                width: 160,
+                height: 160,
+                colorDark : "#000000",
+                colorLight : "#ffffff",
+                correctLevel : QRCode.CorrectLevel.H
+            });
+        });
+
         const questions = [
             { q: "技嘉 STEALTH 系列最主要的設計核心是什麼？", o: ["無線傳輸", "背插式介面設計", "超大型散熱扇", "全透明外殼"], a: 1 },
             { q: "背插式設計如何影響電腦散熱？", o: ["增加風扇轉速", "降低電力消耗", "理線整潔並優化風道", "增加機殼重量"], a: 2 },
@@ -160,12 +185,10 @@
             document.getElementById('test-trigger').classList.remove('hidden');
         }
 
-        // 當真正偵測到標誌時
         document.getElementById('stealth-marker').addEventListener('markerFound', () => {
             handleMarkerFound();
         });
 
-        // 測試模式按鈕：手動觸發
         function forceTriggerMarker() {
             handleMarkerFound();
         }
