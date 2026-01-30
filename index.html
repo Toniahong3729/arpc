@@ -32,7 +32,7 @@
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: radial-gradient(circle at center, #1a1a1a 0%, #000 100%);
             display: flex; flex-direction: column; align-items: center; justify-content: center;
-            z-index: 1000; transition: opacity 0.8s ease;
+            z-index: 1000; transition: opacity 0.5s ease;
         }
 
         .btn-aorus { 
@@ -49,7 +49,7 @@
         }
 
         .aorus-panel { 
-            background: rgba(0, 0, 0, 0.8); border: 1px solid #ff6600; 
+            background: rgba(0, 0, 0, 0.85); border: 1px solid #ff6600; 
             color: white; padding: 25px; border-radius: 15px; text-align: center;
             pointer-events: auto; backdrop-filter: blur(10px); width: 85%; max-width: 400px;
         }
@@ -62,20 +62,32 @@
         }
 
         .hidden { display: none !important; }
-
-        /* 修正 A-Frame 產面的 Canvas 樣式 */
         .a-canvas { z-index: -5 !important; }
 
-        /* Hiro Marker 範例圖示樣式 */
         .marker-sample {
-            width: 80px; height: 80px; background: white; border: 10px solid black;
+            width: 100px; height: 100px; background: white; border: 12px solid black;
             display: flex; align-items: center; justify-content: center;
             margin: 0 auto 15px;
         }
-        .marker-sample span { color: black; font-weight: bold; font-size: 14px; font-family: sans-serif; }
+        .marker-sample span { color: black; font-weight: bold; font-size: 18px; font-family: sans-serif; }
+
+        #error-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9); z-index: 2000;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            padding: 30px; text-align: center; color: white;
+        }
     </style>
 </head>
 <body>
+
+    <!-- 錯誤提示層 -->
+    <div id="error-overlay" class="hidden">
+        <div class="text-[#ff6600] text-5xl mb-6">⚠️</div>
+        <h2 class="text-xl font-bold mb-4">需要相機權限</h2>
+        <p id="error-text" class="text-sm text-gray-400 mb-8 leading-relaxed">請確保已允許瀏覽器存取相機，並使用 Safari (iOS) 或 Chrome (Android) 開啟此頁面。</p>
+        <button onclick="location.reload()" class="btn-aorus text-sm">重試一遍</button>
+    </div>
 
     <!-- 啟動主畫面 -->
     <div id="landing-page">
@@ -88,28 +100,24 @@
             <h1 class="text-3xl font-bold text-white mb-2">STEALTH <span class="text-[#ff6600]">AR</span></h1>
             <p class="text-gray-400 text-xs tracking-widest mb-12 uppercase">GIGABYTE INTERACTIVE</p>
             
-            <button onclick="initAR()" class="btn-aorus">
+            <button id="main-start-btn" onclick="requestCameraAndInit()" class="btn-aorus">
                 進入 AR 挑戰
             </button>
             
-            <p class="mt-8 text-[10px] text-gray-500">請開啟相機權限以獲得最佳體驗</p>
+            <p class="mt-8 text-[10px] text-gray-500">建議使用 Chrome 或 Safari 以獲得最佳體驗</p>
         </div>
     </div>
 
     <!-- UI 重疊層 -->
     <div id="ui-container" class="ui-overlay hidden">
-        <!-- 導引文字 -->
         <div id="ar-instruction">正在尋找 STEALTH 標誌 (Hiro Marker)...</div>
 
         <!-- 掃描提示框 -->
         <div id="start-panel" class="aorus-panel">
             <h2 class="text-[#ff6600] font-bold mb-4">準備掃描</h2>
-            
-            <!-- 新增的可視化 Marker 提示 -->
             <div class="marker-sample">
                 <span>HIRO</span>
             </div>
-
             <p class="text-sm text-gray-300 mb-6">請將鏡頭對準電腦螢幕上的 <br><strong>Hiro Marker (如上圖)</strong></p>
             <div class="w-12 h-12 border-2 border-[#ff6600] border-dashed mx-auto animate-pulse"></div>
         </div>
@@ -133,7 +141,6 @@
         </div>
     </div>
 
-    <!-- AR 場景 (預設空白，由 JS 注入) -->
     <div id="scene-container"></div>
 
     <script>
@@ -148,20 +155,31 @@
         let currentQuestion = 0;
         let markerFound = false;
 
-        // 動態初始化 AR
+        async function requestCameraAndInit() {
+            try {
+                // 先嘗試請求權限
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+                // 成功獲取權限，停止測試流，開始載入 AR
+                stream.getTracks().forEach(track => track.stop());
+                initAR();
+            } catch (err) {
+                console.error("Camera error:", err);
+                document.getElementById('error-overlay').classList.remove('hidden');
+                document.getElementById('error-text').innerText = "相機啟動失敗：可能是權限被拒絕，或是瀏覽器不支援。請確認網址開頭為 https，並在瀏覽器設定中允許相機權限。";
+            }
+        }
+
         function initAR() {
-            // 隱藏主畫面
             document.getElementById('landing-page').style.opacity = '0';
             setTimeout(() => {
                 document.getElementById('landing-page').classList.add('hidden');
                 document.getElementById('ui-container').classList.remove('hidden');
-            }, 800);
+            }, 500);
 
-            // 注入 A-Frame 場景
             const sceneHTML = `
                 <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false;" renderer="antialias: true; alpha: true" vr-mode-ui="enabled: false">
                     <a-marker preset="hiro" id="stealth-marker">
-                        <a-entity position="0 0.5 0" scale="1 1 1">
+                        <a-entity position="0 0.5 0">
                             <a-box position="0 0 0" material="color: #000; opacity: 0.7" scale="1.2 1.2 1.2">
                                 <a-box position="0 0 0" scale="0.8 0.8 0.8" material="color: #111; emissive: #ff6600; emissiveIntensity: 0.5"></a-box>
                             </a-box>
@@ -173,7 +191,6 @@
             `;
             document.getElementById('scene-container').innerHTML = sceneHTML;
 
-            // 綁定事件
             setTimeout(() => {
                 const marker = document.getElementById('stealth-marker');
                 if (marker) {
@@ -230,7 +247,6 @@
             document.getElementById('medal-panel').classList.remove('hidden');
         }
 
-        // 強制 resize 修復畫面
         window.addEventListener('resize', () => {
             const video = document.querySelector('video');
             if (video) {
