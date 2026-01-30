@@ -17,15 +17,16 @@
             margin: 0; padding: 0; width: 100%; height: 100%; 
             overflow: hidden; font-family: 'Orbitron', sans-serif; background: #000; 
             position: fixed;
+            left: 0; top: 0;
         }
 
-        /* 絕對強制全螢幕：解決畫面縮小變黑的核心修正 */
+        /* 絕對強制全螢幕：解決畫面縮小與右側遮擋 */
         #scene-container, a-scene, .a-canvas, video {
             position: fixed !important;
             top: 0 !important;
             left: 0 !important;
-            width: 100% !important;
-            height: 100% !important;
+            width: 100vw !important;
+            height: 100vh !important;
             margin: 0 !important;
             padding: 0 !important;
             object-fit: cover !important;
@@ -58,24 +59,48 @@
         .aorus-panel { 
             background: rgba(0, 0, 0, 0.85); border: 1px solid #ff6600; 
             color: white; padding: 25px; border-radius: 15px; text-align: center;
-            pointer-events: auto; backdrop-filter: blur(10px); width: 85%; max-width: 400px;
+            pointer-events: auto; backdrop-filter: blur(10px); width: 85%; max-width: 360px;
+            transition: all 0.5s ease;
+        }
+
+        /* 縮小後的提示狀態 */
+        .aorus-panel.minimized {
+            transform: translateY(-30vh) scale(0.7);
+            opacity: 0.6;
+            pointer-events: none;
         }
 
         #ar-instruction {
-            position: absolute; bottom: 80px; width: 80%;
-            background: rgba(0,0,0,0.8); border: 1px solid #ff6600;
+            position: absolute; bottom: 40px; width: 85%;
+            background: rgba(0,0,0,0.85); border: 1px solid #ff6600;
             color: #ff6600; padding: 12px; border-radius: 30px;
             font-size: 13px; text-align: center; z-index: 50;
+            box-shadow: 0 0 15px rgba(255, 102, 0, 0.2);
         }
 
         .hidden { display: none !important; }
 
-        .marker-sample {
-            width: 100px; height: 100px; background: white; border: 12px solid black;
+        /* 掃描引導框 */
+        .scan-guide {
+            position: absolute;
+            width: 250px; height: 250px;
+            border: 2px solid rgba(255, 102, 0, 0.5);
+            border-radius: 20px;
             display: flex; align-items: center; justify-content: center;
-            margin: 0 auto 15px;
+            z-index: 20;
         }
-        .marker-sample span { color: black; font-weight: bold; font-size: 18px; font-family: sans-serif; }
+        .scan-guide::before, .scan-guide::after {
+            content: ''; position: absolute; width: 40px; height: 40px; border: 4px solid #ff6600;
+        }
+        .scan-guide::before { top: -2px; left: -2px; border-right: 0; border-bottom: 0; border-radius: 15px 0 0 0; }
+        .scan-guide::after { bottom: -2px; right: -2px; border-left: 0; border-top: 0; border-radius: 0 0 15px 0; }
+
+        .marker-sample {
+            width: 80px; height: 80px; background: white; border: 8px solid black;
+            display: flex; align-items: center; justify-content: center;
+            margin: 0 auto 10px;
+        }
+        .marker-sample span { color: black; font-weight: bold; font-size: 14px; font-family: sans-serif; }
 
         #error-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -93,7 +118,7 @@
     <div id="error-overlay" class="hidden">
         <div class="text-[#ff6600] text-5xl mb-6">⚠️</div>
         <h2 class="text-xl font-bold mb-4">相機啟動異常</h2>
-        <p id="error-text" class="text-sm text-gray-400 mb-8 leading-relaxed">請確認是否已授權相機權限，並建議使用 Safari 或 Chrome 瀏覽器。</p>
+        <p id="error-text" class="text-sm text-gray-400 mb-8">請嘗試在 Safari 或 Chrome 中開啟此網頁。</p>
         <button onclick="location.reload()" class="btn-aorus text-sm">重新嘗試</button>
     </div>
 
@@ -111,23 +136,28 @@
             <button id="main-start-btn" onclick="requestCameraAndInit()" class="btn-aorus">
                 進入 AR 挑戰
             </button>
-            
-            <p class="mt-8 text-[10px] text-gray-500 font-sans">v2.1 - 佈局修復版</p>
+            <p class="mt-8 text-[10px] text-gray-500 font-sans">v2.2 - 介面優化版</p>
         </div>
     </div>
 
     <!-- UI 重疊層 -->
     <div id="ui-container" class="ui-overlay hidden">
-        <div id="ar-instruction">正在尋找標誌 (Hiro Marker)...</div>
+        
+        <!-- 掃描引導框 (幫助對準) -->
+        <div id="scan-viewfinder" class="scan-guide">
+            <div class="w-full h-0.5 bg-[#ff6600]/30 animate-bounce"></div>
+        </div>
+
+        <div id="ar-instruction">請尋找並對準 Hiro Marker</div>
 
         <!-- 掃描提示框 -->
         <div id="start-panel" class="aorus-panel">
-            <h2 class="text-[#ff6600] font-bold mb-4">準備掃描</h2>
+            <h2 class="text-[#ff6600] font-bold mb-3">準備掃描</h2>
             <div class="marker-sample">
                 <span>HIRO</span>
             </div>
-            <p class="text-sm text-gray-300 mb-6 font-sans">請將鏡頭對準電腦螢幕上的 <br><strong>Hiro Marker</strong></p>
-            <div class="w-12 h-12 border-2 border-[#ff6600] border-dashed mx-auto animate-pulse"></div>
+            <p class="text-xs text-gray-300 mb-4 font-sans">請將鏡頭對準電腦上的<br><strong>Hiro Marker (如上圖)</strong></p>
+            <div class="text-[10px] text-[#ff6600] animate-pulse">正在搜尋中...</div>
         </div>
 
         <!-- 問答面板 -->
@@ -141,8 +171,7 @@
         <div id="medal-panel" class="aorus-panel hidden">
             <div class="text-5xl mb-4">🏆</div>
             <h2 class="text-2xl font-bold text-[#ff6600] mb-2">挑戰完成</h2>
-            <p class="text-xs text-gray-400 mb-6 font-sans">您已成功掌握 STEALTH 技術核心</p>
-            <div class="bg-[#ff6600]/10 py-4 border border-[#ff6600]/30 rounded-lg mb-6">
+            <div class="bg-[#ff6600]/10 py-4 border border-[#ff6600]/30 rounded-lg mb-6 mt-4">
                 <span class="text-2xl font-black tracking-widest text-[#ff6600]">STEALTH-PRO</span>
             </div>
             <button onclick="location.reload()" class="text-xs text-gray-500 underline">重新挑戰</button>
@@ -165,14 +194,12 @@
 
         async function requestCameraAndInit() {
             try {
-                // 請求相機權限
                 const stream = await navigator.mediaDevices.getUserMedia({ 
                     video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } } 
                 });
                 stream.getTracks().forEach(track => track.stop());
                 initAR();
             } catch (err) {
-                console.error("Camera error:", err);
                 document.getElementById('error-overlay').classList.remove('hidden');
             }
         }
@@ -182,15 +209,21 @@
             setTimeout(() => {
                 document.getElementById('landing-page').classList.add('hidden');
                 document.getElementById('ui-container').classList.remove('hidden');
+                
+                // 3 秒後縮小提示框，讓用戶看清楚相機畫面
+                setTimeout(() => {
+                    if(!markerFound) {
+                        document.getElementById('start-panel').classList.add('minimized');
+                    }
+                }, 3000);
             }, 500);
 
-            // 修正：動態設置顯示寬高，並停用 A-Frame 自動縮放
             const sceneHTML = `
                 <a-scene 
                     embedded 
                     loading-screen="enabled: false"
-                    arjs="sourceType: webcam; debugUIEnabled: false; displayWidth: ${window.innerWidth}; displayHeight: ${window.innerHeight}; canvasWidth: ${window.innerWidth}; canvasHeight: ${window.innerHeight};" 
-                    renderer="antialias: true; alpha: true; precision: medium;" 
+                    arjs="sourceType: webcam; debugUIEnabled: false; displayWidth: ${window.innerWidth}; displayHeight: ${window.innerHeight};" 
+                    renderer="antialias: true; alpha: true;" 
                     vr-mode-ui="enabled: false">
                     
                     <a-marker preset="hiro" id="stealth-marker">
@@ -198,7 +231,7 @@
                             <a-box position="0 0 0" material="color: #000; opacity: 0.8" scale="1 1 1">
                                 <a-box position="0 0 0" scale="0.9 0.9 0.9" material="color: #111; emissive: #ff6600; emissiveIntensity: 0.7"></a-box>
                             </a-box>
-                            <a-text value="STEALTH ACTIVE" position="0 1.2 0" align="center" color="#ff6600" width="3" font="mozillavr"></a-text>
+                            <a-text value="STEALTH ACTIVE" position="0 1.2 0" align="center" color="#ff6600" width="3"></a-text>
                         </a-entity>
                     </a-marker>
                     
@@ -207,30 +240,23 @@
             `;
             document.getElementById('scene-container').innerHTML = sceneHTML;
 
-            // 強制佈局修正腳本：定時檢測，防止相機影像縮小
-            const fixLayout = () => {
-                const video = document.querySelector('video');
-                const canvas = document.querySelector('.a-canvas');
-                if (video) {
-                    video.style.width = window.innerWidth + 'px';
-                    video.style.height = window.innerHeight + 'px';
-                    video.style.marginLeft = '0px';
-                    video.style.marginTop = '0px';
-                }
-                if (canvas) {
-                    canvas.style.width = window.innerWidth + 'px';
-                    canvas.style.height = window.innerHeight + 'px';
-                }
+            // 強制修正佈局，確保不留黑邊或被擠壓
+            const fix = () => {
+                const els = ['video', '.a-canvas'];
+                els.forEach(selector => {
+                    const el = document.querySelector(selector);
+                    if (el) {
+                        el.style.width = window.innerWidth + 'px';
+                        el.style.height = window.innerHeight + 'px';
+                        el.style.position = 'fixed';
+                        el.style.top = '0';
+                        el.style.left = '0';
+                    }
+                });
             };
+            
+            setInterval(fix, 1000);
 
-            // 每 500ms 檢查一次，持續 3 秒，確保啟動過程佈局正確
-            let fixCount = 0;
-            const fixTimer = setInterval(() => {
-                fixLayout();
-                if (++fixCount > 6) clearInterval(fixTimer);
-            }, 500);
-
-            // 綁定掃描事件
             setTimeout(() => {
                 const marker = document.querySelector('#stealth-marker');
                 if (marker) {
@@ -245,13 +271,15 @@
             markerFound = true;
             document.getElementById('ar-instruction').innerText = "偵測成功！";
             document.getElementById('ar-instruction').style.color = "#4CAF50";
+            document.getElementById('scan-viewfinder').classList.add('hidden');
             
             setTimeout(() => {
                 document.getElementById('start-panel').classList.add('hidden');
                 document.getElementById('ar-instruction').classList.add('hidden');
                 document.getElementById('quiz-panel').classList.remove('hidden');
+                document.getElementById('quiz-panel').classList.remove('minimized');
                 loadQuestion();
-            }, 1000);
+            }, 800);
         }
 
         function loadQuestion() {
@@ -286,19 +314,6 @@
             document.getElementById('quiz-panel').classList.add('hidden');
             document.getElementById('medal-panel').classList.remove('hidden');
         }
-
-        window.addEventListener('resize', () => {
-            const video = document.querySelector('video');
-            const canvas = document.querySelector('.a-canvas');
-            if (video) {
-                video.style.width = window.innerWidth + 'px';
-                video.style.height = window.innerHeight + 'px';
-            }
-            if (canvas) {
-                canvas.style.width = window.innerWidth + 'px';
-                canvas.style.height = window.innerHeight + 'px';
-            }
-        });
     </script>
 </body>
 </html>
