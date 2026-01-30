@@ -4,10 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>GIGABYTE STEALTH AR</title>
-    <!-- 基礎 A-Frame -->
-    <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
-    <!-- 基礎 AR.js -->
-    <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
     <!-- UI 樣式 -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -17,17 +13,6 @@
             margin: 0; padding: 0; width: 100%; height: 100%; 
             overflow: hidden; font-family: 'Orbitron', sans-serif; background: #000; 
             position: fixed; left: 0; top: 0; right: 0; bottom: 0;
-        }
-
-        /* 終極修復：強制撐開所有 AR 相關元件 */
-        video, .a-canvas, a-scene {
-            width: 100% !important;
-            height: 100% !important;
-            top: 0 !important;
-            left: 0 !important;
-            position: fixed !important;
-            object-fit: cover !important;
-            margin: 0 !important;
         }
 
         #landing-page {
@@ -46,72 +31,69 @@
 
         .ui-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            pointer-events: none; z-index: 100;
+            z-index: 100; display: flex; flex-direction: column; align-items: center; justify-content: center;
+            background: rgba(0,0,0,0.4);
         }
 
         .aorus-panel { 
             background: rgba(0, 0, 0, 0.85); border: 1px solid #ff6600; 
             color: white; padding: 25px; border-radius: 15px; text-align: center;
-            pointer-events: auto; backdrop-filter: blur(10px); width: 85%; max-width: 360px;
-            position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+            backdrop-filter: blur(10px); width: 85%; max-width: 360px;
+            box-shadow: 0 0 30px rgba(255, 102, 0, 0.2);
         }
 
-        /* 頂部掃描提示 */
-        #top-guide {
-            position: absolute; top: 30px; left: 0; width: 100%;
-            display: flex; flex-direction: column; align-items: center;
-            z-index: 60;
+        /* 雷達掃描特效 */
+        .radar-container {
+            width: 200px; height: 200px; border: 2px solid #ff6600;
+            border-radius: 50%; position: relative; margin-bottom: 30px;
+            overflow: hidden; background: rgba(255, 102, 0, 0.05);
         }
-
-        .top-label {
-            background: rgba(255, 102, 0, 0.9); color: black;
-            padding: 4px 15px; border-radius: 20px; font-size: 10px; font-weight: bold;
-            margin-bottom: 8px; box-shadow: 0 0 10px #ff6600;
+        .radar-sweep {
+            position: absolute; width: 100%; height: 100%;
+            background: conic-gradient(from 0deg, transparent 0%, rgba(255, 102, 0, 0.4) 100%);
+            animation: sweep 2s linear infinite; transform-origin: center;
+        }
+        @keyframes sweep {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        .radar-ping {
+            position: absolute; width: 8px; height: 8px; background: #ff6600;
+            border-radius: 50%; top: 40%; left: 60%; box-shadow: 0 0 10px #ff6600;
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 1; }
+            100% { transform: scale(3); opacity: 0; }
         }
 
         #ar-instruction {
-            background: rgba(0,0,0,0.7); border: 1px solid #ff6600;
-            color: #ff6600; padding: 10px 20px; border-radius: 30px;
-            font-size: 12px; text-align: center;
-        }
-
-        /* 掃描引導框 (大邊框，不遮擋中央) */
-        .scan-viewfinder {
-            position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
-            width: 70vw; height: 70vw; max-width: 280px; max-height: 280px;
-            border: 1px solid rgba(255, 102, 0, 0.3);
-            border-radius: 20px; pointer-events: none;
-        }
-        .scan-viewfinder::before {
-            content: ''; position: absolute; width: 30px; height: 30px;
-            top: -2px; left: -2px; border-top: 4px solid #ff6600; border-left: 4px solid #ff6600; border-radius: 10px 0 0 0;
-        }
-        .scan-viewfinder::after {
-            content: ''; position: absolute; width: 30px; height: 30px;
-            bottom: -2px; right: -2px; border-bottom: 4px solid #ff6600; border-right: 4px solid #ff6600; border-radius: 0 0 10px 0;
+            color: #ff6600; font-size: 14px; margin-top: 15px;
+            letter-spacing: 1px; font-weight: bold;
         }
 
         .hidden { display: none !important; }
 
-        #error-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.9); z-index: 2000;
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            padding: 30px; text-align: center; color: white;
+        /* 進度條 */
+        .progress-bar {
+            width: 100%; height: 4px; background: #333; border-radius: 2px;
+            margin-top: 20px; overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%; background: #ff6600; width: 0%;
+            transition: width 0.1s linear;
         }
 
-        .a-enter-vr { display: none !important; }
+        #medal-panel {
+            animation: slideUp 0.6s cubic-bezier(0.23, 1, 0.32, 1);
+        }
+        @keyframes slideUp {
+            from { transform: translateY(50px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
     </style>
 </head>
 <body>
-
-    <!-- 錯誤提示層 -->
-    <div id="error-overlay" class="hidden">
-        <div class="text-[#ff6600] text-5xl mb-6">⚠️</div>
-        <h2 class="text-xl font-bold mb-4">相機啟動異常</h2>
-        <p class="text-sm text-gray-400 mb-8 font-sans">請確保已在瀏覽器設定中允許相機權限。</p>
-        <button onclick="location.reload()" class="btn-aorus text-sm">重新整理</button>
-    </div>
 
     <!-- 啟動主畫面 -->
     <div id="landing-page">
@@ -121,166 +103,117 @@
                     <span class="text-2xl font-black text-black">GS</span>
                 </div>
             </div>
-            <h1 class="text-3xl font-bold text-white mb-2">STEALTH <span class="text-[#ff6600]">AR</span></h1>
-            <p class="text-gray-400 text-xs tracking-widest mb-12 uppercase font-sans">GIGABYTE INTERACTIVE</p>
+            <h1 class="text-3xl font-bold text-white mb-2 tracking-tighter">STEALTH <span class="text-[#ff6600]">LAB</span></h1>
+            <p class="text-gray-400 text-[10px] tracking-[0.3em] mb-12 uppercase font-sans">Aorus Stealth Challenge</p>
             
-            <button id="main-start-btn" onclick="requestCameraAndInit()" class="btn-aorus">
-                開始活動
+            <button onclick="startScanning()" class="btn-aorus">
+                立即啟動
             </button>
-            <p class="mt-8 text-[10px] text-gray-600 font-sans tracking-widest">v2.3 STABLE</p>
+            <p class="mt-8 text-[10px] text-gray-600 font-sans tracking-widest">NO MARKER REQUIRED v3.0</p>
         </div>
     </div>
 
     <!-- UI 重疊層 -->
     <div id="ui-container" class="ui-overlay hidden">
         
-        <!-- 頂部提示 (取代中央大面板) -->
-        <div id="top-guide">
-            <div class="top-label">STEALTH SCANNER</div>
-            <div id="ar-instruction">請將 Hiro 標誌對準方框中央</div>
-        </div>
-
-        <!-- 透明掃描方框 -->
-        <div id="scan-frame" class="scan-viewfinder">
-            <div class="absolute inset-0 flex items-center justify-center">
-                <div class="w-full h-[1px] bg-[#ff6600]/20 animate-pulse"></div>
+        <!-- 掃描動畫面板 -->
+        <div id="scan-panel" class="flex flex-col items-center">
+            <div class="radar-container">
+                <div class="radar-sweep"></div>
+                <div class="radar-ping"></div>
+                <div class="radar-ping" style="top:70%; left:30%; animation-delay: 0.5s;"></div>
+            </div>
+            <div id="ar-instruction">正在偵測 STEALTH 設備...</div>
+            <div class="w-48 progress-bar">
+                <div id="load-progress" class="progress-fill"></div>
             </div>
         </div>
 
         <!-- 問答面板 -->
         <div id="quiz-panel" class="aorus-panel hidden text-left">
-            <div id="quiz-progress" class="text-[10px] text-[#ff6600] mb-2 font-bold text-right font-sans">Q: 1 / 5</div>
-            <h2 id="question-text" class="text-base font-bold mb-6"></h2>
-            <div id="options-container" class="grid gap-3"></div>
+            <div id="quiz-progress" class="text-[10px] text-[#ff6600] mb-2 font-bold text-right font-sans tracking-widest">PHASE: 01 / 05</div>
+            <h2 id="question-text" class="text-lg font-bold mb-8 leading-tight"></h2>
+            <div id="options-container" class="grid gap-4"></div>
         </div>
 
         <!-- 成功勳章 -->
         <div id="medal-panel" class="aorus-panel hidden">
-            <div class="text-5xl mb-4">🏆</div>
-            <h2 class="text-2xl font-bold text-[#ff6600] mb-2">挑戰完成</h2>
-            <div class="bg-[#ff6600]/10 py-4 border border-[#ff6600]/30 rounded-lg mb-6 mt-4">
-                <span class="text-2xl font-black tracking-widest text-[#ff6600]">STEALTH-PRO</span>
+            <div class="text-6xl mb-6">🏅</div>
+            <h2 class="text-2xl font-black text-white mb-2 italic">CHALLENGE CLEAR</h2>
+            <p class="text-gray-400 text-[10px] mb-8 font-sans uppercase tracking-widest">GIGABYTE STEALTH CERTIFIED</p>
+            <div class="bg-gradient-to-r from-transparent via-[#ff6600]/20 to-transparent py-5 border-y border-[#ff6600]/40 mb-8">
+                <span class="text-3xl font-black tracking-[0.2em] text-[#ff6600]">STEALTH-PRO</span>
             </div>
-            <button onclick="location.reload()" class="text-xs text-gray-500 underline">重新挑戰</button>
+            <button onclick="location.reload()" class="text-[10px] text-gray-500 uppercase tracking-widest hover:text-white transition-colors">Restart Mission</button>
         </div>
     </div>
 
-    <div id="scene-container"></div>
-
     <script>
         const questions = [
-            { q: "技嘉 STEALTH 系列最主要的設計核心是什麼？", o: ["無線傳輸", "背插式介面設計", "超大型散熱扇", "全透明外殼"], a: 1 },
-            { q: "背插式設計如何影響電腦散熱？", o: ["增加風扇轉速", "降低電力消耗", "理線整潔並優化風道", "增加機殼重量"], a: 2 },
-            { q: "STEALTH 系列通常搭配哪個高端子品牌？", o: ["AORUS", "AERO", "EAGLE", "GAMING"], a: 0 },
-            { q: "使用 STEALTH 方案進行組裝，主要能解決什麼痛點？", o: ["理線繁雜與視覺混亂", "硬碟空間不足", "顯示卡太重", "螢幕解析度不足"], a: 0 },
-            { q: "STEALTH 系列的視覺特點為何？", o: ["充滿大量 RGB", "幾乎看不到外露線材", "機殼呈現全黃色", "需要使用水冷"], a: 1 }
+            { q: "技嘉 STEALTH 系列最主要的設計核心是什麼？", o: ["無線傳輸技術", "背插式介面設計", "超大型散熱風扇", "全透明機殼外殼"], a: 1 },
+            { q: "背插式設計（Stealth）對組裝電腦最大的好處是？", o: ["提高顯示卡跑分", "降低整體電力消耗", "理線極致整潔並優化風道", "增加機殼外部重量"], a: 2 },
+            { q: "STEALTH 系列產品通常與哪個高端電競品牌合作？", o: ["AORUS", "AERO", "EAGLE", "GAMING"], a: 0 },
+            { q: "使用 STEALTH 方案進行組裝，主要解決了什麼視覺痛點？", o: ["理線繁雜與視覺混亂", "硬碟擴充空間不足", "螢幕解析度不足", "顯示卡重量過重"], a: 0 },
+            { q: "在視覺呈現上，STEALTH 主機最大的特點是？", o: ["充滿大量 RGB 燈光", "幾乎看不到任何外露線材", "機殼採用亮黃色塗裝", "必須搭配開放式水冷"], a: 1 }
         ];
 
         let currentQuestion = 0;
-        let markerFound = false;
 
-        async function requestCameraAndInit() {
-            try {
-                // 檢查相機權限
-                const stream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { facingMode: 'environment' } 
-                });
-                stream.getTracks().forEach(track => track.stop());
-                initAR();
-            } catch (err) {
-                document.getElementById('error-overlay').classList.remove('hidden');
-            }
-        }
-
-        function initAR() {
+        function startScanning() {
             document.getElementById('landing-page').style.opacity = '0';
             setTimeout(() => {
                 document.getElementById('landing-page').classList.add('hidden');
                 document.getElementById('ui-container').classList.remove('hidden');
-            }, 500);
-
-            // 修正：移除 embedded，讓 A-Frame 全權處理佈局
-            const sceneHTML = `
-                <a-scene 
-                    loading-screen="enabled: false"
-                    arjs="sourceType: webcam; debugUIEnabled: false; displayWidth: ${window.innerWidth}; displayHeight: ${window.innerHeight};" 
-                    renderer="antialias: true; alpha: true; precision: medium;" 
-                    vr-mode-ui="enabled: false">
-                    
-                    <a-marker preset="hiro" id="stealth-marker">
-                        <a-entity position="0 0.5 0" animation="property: rotation; to: 0 360 0; loop: true; dur: 4000; easing: linear">
-                            <a-box position="0 0 0" material="color: #000; opacity: 0.8" scale="1 1 1">
-                                <a-box position="0 0 0" scale="0.9 0.9 0.9" material="color: #111; emissive: #ff6600; emissiveIntensity: 0.7"></a-box>
-                            </a-box>
-                            <a-text value="STEALTH ACTIVE" position="0 1.2 0" align="center" color="#ff6600" width="3"></a-text>
-                        </a-entity>
-                    </a-marker>
-                    
-                    <a-entity camera></a-entity>
-                </a-scene>
-            `;
-            document.getElementById('scene-container').innerHTML = sceneHTML;
-
-            // 每秒執行一次布局修復，對抗移動設備的動態 UI 變化
-            const forceLayout = () => {
-                const els = ['video', '.a-canvas', 'a-scene'];
-                els.forEach(s => {
-                    const el = document.querySelector(s);
-                    if (el) {
-                        el.style.setProperty('width', window.innerWidth + 'px', 'important');
-                        el.style.setProperty('height', window.innerHeight + 'px', 'important');
+                
+                // 模擬掃描進度
+                let progress = 0;
+                const progressFill = document.getElementById('load-progress');
+                const interval = setInterval(() => {
+                    progress += 2;
+                    progressFill.style.width = progress + '%';
+                    if (progress >= 100) {
+                        clearInterval(interval);
+                        setTimeout(triggerQuiz, 500);
                     }
-                });
-            };
-            setInterval(forceLayout, 1000);
-
-            // 監聽掃描
-            setTimeout(() => {
-                const marker = document.querySelector('#stealth-marker');
-                if (marker) {
-                    marker.addEventListener('markerFound', () => {
-                        if(!markerFound) triggerQuiz();
-                    });
-                }
-            }, 2500);
+                }, 40);
+            }, 500);
         }
 
         function triggerQuiz() {
-            markerFound = true;
-            document.getElementById('ar-instruction').innerText = "辨識成功！開始挑戰";
-            document.getElementById('ar-instruction').style.background = "#4CAF50";
-            document.getElementById('ar-instruction').style.color = "white";
-            document.getElementById('scan-frame').classList.add('hidden');
-            
-            setTimeout(() => {
-                document.getElementById('top-guide').classList.add('hidden');
-                document.getElementById('quiz-panel').classList.remove('hidden');
-                loadQuestion();
-            }, 1000);
+            document.getElementById('scan-panel').classList.add('hidden');
+            document.getElementById('quiz-panel').classList.remove('hidden');
+            loadQuestion();
         }
 
         function loadQuestion() {
             const q = questions[currentQuestion];
-            document.getElementById('quiz-progress').innerText = `Q: ${currentQuestion + 1} / ${questions.length}`;
+            document.getElementById('quiz-progress').innerText = `PHASE: 0${currentQuestion + 1} / 05`;
             document.getElementById('question-text').innerText = q.q;
             const container = document.getElementById('options-container');
             container.innerHTML = '';
             
             q.o.forEach((option, index) => {
                 const btn = document.createElement('button');
-                btn.className = "w-full text-left p-4 rounded-lg bg-white/10 border border-white/20 text-white text-sm active:bg-[#ff6600] transition-all font-sans";
+                btn.className = "w-full text-left p-4 rounded-xl bg-white/5 border border-white/10 text-white text-sm hover:border-[#ff6600]/50 active:bg-[#ff6600] transition-all font-sans duration-200";
                 btn.innerText = option;
                 btn.onclick = () => {
+                    // 禁用所有按鈕防止重複點擊
+                    const buttons = container.querySelectorAll('button');
+                    buttons.forEach(b => b.style.pointerEvents = 'none');
+
                     if (index === q.a) {
-                        btn.classList.add('bg-green-600', 'border-green-600');
+                        btn.classList.add('bg-green-600/40', 'border-green-500');
                         setTimeout(() => {
                             currentQuestion++;
                             if (currentQuestion < questions.length) loadQuestion();
                             else showMedal();
-                        }, 500);
+                        }, 600);
                     } else {
-                        btn.classList.add('bg-red-600', 'border-red-600');
-                        setTimeout(() => btn.classList.remove('bg-red-600', 'border-red-600'), 500);
+                        btn.classList.add('bg-red-600/40', 'border-red-500');
+                        setTimeout(() => {
+                            btn.classList.remove('bg-red-600/40', 'border-red-500');
+                            buttons.forEach(b => b.style.pointerEvents = 'auto');
+                        }, 800);
                     }
                 };
                 container.appendChild(btn);
