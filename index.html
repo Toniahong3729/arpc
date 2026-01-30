@@ -16,17 +16,22 @@
         body, html { 
             margin: 0; padding: 0; width: 100%; height: 100%; 
             overflow: hidden; font-family: 'Orbitron', sans-serif; background: #000; 
-            position: fixed; /* 防止橡皮筋滾動效果 */
+            position: fixed;
         }
 
-        /* 修正相機影像佈局，強制全螢幕渲染 */
-        video, .a-canvas {
+        /* 絕對強制全螢幕：解決畫面縮小變黑的核心修正 */
+        #scene-container, a-scene, .a-canvas, video {
             position: fixed !important;
             top: 0 !important;
             left: 0 !important;
-            width: 100vw !important;
-            height: 100vh !important;
+            width: 100% !important;
+            height: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
             object-fit: cover !important;
+        }
+
+        video {
             z-index: -10 !important;
         }
 
@@ -57,10 +62,10 @@
         }
 
         #ar-instruction {
-            position: absolute; bottom: 50px; width: 80%;
+            position: absolute; bottom: 80px; width: 80%;
             background: rgba(0,0,0,0.8); border: 1px solid #ff6600;
-            color: #ff6600; padding: 10px; border-radius: 30px;
-            font-size: 12px; text-align: center; z-index: 50;
+            color: #ff6600; padding: 12px; border-radius: 30px;
+            font-size: 13px; text-align: center; z-index: 50;
         }
 
         .hidden { display: none !important; }
@@ -79,7 +84,6 @@
             padding: 30px; text-align: center; color: white;
         }
 
-        /* 隱藏 A-Frame 的對話框 */
         .a-enter-vr { display: none !important; }
     </style>
 </head>
@@ -88,9 +92,9 @@
     <!-- 錯誤提示層 -->
     <div id="error-overlay" class="hidden">
         <div class="text-[#ff6600] text-5xl mb-6">⚠️</div>
-        <h2 class="text-xl font-bold mb-4">需要相機權限</h2>
-        <p id="error-text" class="text-sm text-gray-400 mb-8 leading-relaxed">請確保已允許瀏覽器存取相機。</p>
-        <button onclick="location.reload()" class="btn-aorus text-sm">重試一遍</button>
+        <h2 class="text-xl font-bold mb-4">相機啟動異常</h2>
+        <p id="error-text" class="text-sm text-gray-400 mb-8 leading-relaxed">請確認是否已授權相機權限，並建議使用 Safari 或 Chrome 瀏覽器。</p>
+        <button onclick="location.reload()" class="btn-aorus text-sm">重新嘗試</button>
     </div>
 
     <!-- 啟動主畫面 -->
@@ -108,13 +112,13 @@
                 進入 AR 挑戰
             </button>
             
-            <p class="mt-8 text-[10px] text-gray-500">建議使用 Chrome 或 Safari 以獲得最佳體驗</p>
+            <p class="mt-8 text-[10px] text-gray-500 font-sans">v2.1 - 佈局修復版</p>
         </div>
     </div>
 
     <!-- UI 重疊層 -->
     <div id="ui-container" class="ui-overlay hidden">
-        <div id="ar-instruction">正在尋找 STEALTH 標誌 (Hiro Marker)...</div>
+        <div id="ar-instruction">正在尋找標誌 (Hiro Marker)...</div>
 
         <!-- 掃描提示框 -->
         <div id="start-panel" class="aorus-panel">
@@ -122,14 +126,14 @@
             <div class="marker-sample">
                 <span>HIRO</span>
             </div>
-            <p class="text-sm text-gray-300 mb-6">請將鏡頭對準電腦螢幕上的 <br><strong>Hiro Marker (如上圖)</strong></p>
+            <p class="text-sm text-gray-300 mb-6 font-sans">請將鏡頭對準電腦螢幕上的 <br><strong>Hiro Marker</strong></p>
             <div class="w-12 h-12 border-2 border-[#ff6600] border-dashed mx-auto animate-pulse"></div>
         </div>
 
         <!-- 問答面板 -->
-        <div id="quiz-panel" class="aorus-panel hidden">
+        <div id="quiz-panel" class="aorus-panel hidden text-left">
             <div id="quiz-progress" class="text-[10px] text-[#ff6600] mb-2 font-bold text-right">Q: 1 / 5</div>
-            <h2 id="question-text" class="text-base font-bold mb-6 text-left"></h2>
+            <h2 id="question-text" class="text-base font-bold mb-6"></h2>
             <div id="options-container" class="grid gap-3"></div>
         </div>
 
@@ -137,7 +141,7 @@
         <div id="medal-panel" class="aorus-panel hidden">
             <div class="text-5xl mb-4">🏆</div>
             <h2 class="text-2xl font-bold text-[#ff6600] mb-2">挑戰完成</h2>
-            <p class="text-xs text-gray-400 mb-6">您已成功掌握 STEALTH 技術核心</p>
+            <p class="text-xs text-gray-400 mb-6 font-sans">您已成功掌握 STEALTH 技術核心</p>
             <div class="bg-[#ff6600]/10 py-4 border border-[#ff6600]/30 rounded-lg mb-6">
                 <span class="text-2xl font-black tracking-widest text-[#ff6600]">STEALTH-PRO</span>
             </div>
@@ -145,7 +149,6 @@
         </div>
     </div>
 
-    <!-- 容器用於注入 AR 場景 -->
     <div id="scene-container"></div>
 
     <script>
@@ -162,20 +165,15 @@
 
         async function requestCameraAndInit() {
             try {
-                // 檢查是否為 iOS 並提示建議瀏覽器
-                const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-                if (isIOS && !window.navigator.standalone && !/Safari/.test(navigator.userAgent)) {
-                    // 如果在 LINE 或 FB 內建瀏覽器，這通常會導致權限問題
-                    console.warn("Detected non-Safari on iOS");
-                }
-
-                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+                // 請求相機權限
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } } 
+                });
                 stream.getTracks().forEach(track => track.stop());
                 initAR();
             } catch (err) {
                 console.error("Camera error:", err);
                 document.getElementById('error-overlay').classList.remove('hidden');
-                document.getElementById('error-text').innerText = "相機啟動失敗。請確認您使用的是 Safari 或 Chrome，且已授權攝影機使用權限。";
             }
         }
 
@@ -186,22 +184,21 @@
                 document.getElementById('ui-container').classList.remove('hidden');
             }, 500);
 
-            // 修正 A-Frame 在某些手機上縮成小方塊的問題
-            // 強制讓 AR.js 抓取當前視窗大小
+            // 修正：動態設置顯示寬高，並停用 A-Frame 自動縮放
             const sceneHTML = `
                 <a-scene 
                     embedded 
                     loading-screen="enabled: false"
-                    arjs="sourceType: webcam; debugUIEnabled: false; displayWidth: ${window.innerWidth}; displayHeight: ${window.innerHeight};" 
+                    arjs="sourceType: webcam; debugUIEnabled: false; displayWidth: ${window.innerWidth}; displayHeight: ${window.innerHeight}; canvasWidth: ${window.innerWidth}; canvasHeight: ${window.innerHeight};" 
                     renderer="antialias: true; alpha: true; precision: medium;" 
                     vr-mode-ui="enabled: false">
                     
                     <a-marker preset="hiro" id="stealth-marker">
-                        <a-entity position="0 0.5 0" animation="property: rotation; to: 0 360 0; loop: true; dur: 5000; easing: linear">
+                        <a-entity position="0 0.5 0" animation="property: rotation; to: 0 360 0; loop: true; dur: 4000; easing: linear">
                             <a-box position="0 0 0" material="color: #000; opacity: 0.8" scale="1 1 1">
-                                <a-box position="0 0 0" scale="0.9 0.9 0.9" material="color: #111; emissive: #ff6600; emissiveIntensity: 0.6"></a-box>
+                                <a-box position="0 0 0" scale="0.9 0.9 0.9" material="color: #111; emissive: #ff6600; emissiveIntensity: 0.7"></a-box>
                             </a-box>
-                            <a-text value="STEALTH MODE" position="0 1.2 0" align="center" color="#ff6600" width="3" font="mozillavr"></a-text>
+                            <a-text value="STEALTH ACTIVE" position="0 1.2 0" align="center" color="#ff6600" width="3" font="mozillavr"></a-text>
                         </a-entity>
                     </a-marker>
                     
@@ -210,7 +207,30 @@
             `;
             document.getElementById('scene-container').innerHTML = sceneHTML;
 
-            // 延遲綁定 marker 事件確保場景已完全建立
+            // 強制佈局修正腳本：定時檢測，防止相機影像縮小
+            const fixLayout = () => {
+                const video = document.querySelector('video');
+                const canvas = document.querySelector('.a-canvas');
+                if (video) {
+                    video.style.width = window.innerWidth + 'px';
+                    video.style.height = window.innerHeight + 'px';
+                    video.style.marginLeft = '0px';
+                    video.style.marginTop = '0px';
+                }
+                if (canvas) {
+                    canvas.style.width = window.innerWidth + 'px';
+                    canvas.style.height = window.innerHeight + 'px';
+                }
+            };
+
+            // 每 500ms 檢查一次，持續 3 秒，確保啟動過程佈局正確
+            let fixCount = 0;
+            const fixTimer = setInterval(() => {
+                fixLayout();
+                if (++fixCount > 6) clearInterval(fixTimer);
+            }, 500);
+
+            // 綁定掃描事件
             setTimeout(() => {
                 const marker = document.querySelector('#stealth-marker');
                 if (marker) {
@@ -218,10 +238,7 @@
                         if(!markerFound) triggerQuiz();
                     });
                 }
-                
-                // 強制觸發一次 resize 確保佈局正確
-                window.dispatchEvent(new Event('resize'));
-            }, 1500);
+            }, 2000);
         }
 
         function triggerQuiz() {
@@ -246,7 +263,7 @@
             
             q.o.forEach((option, index) => {
                 const btn = document.createElement('button');
-                btn.className = "w-full text-left p-4 rounded-lg bg-white/5 border border-white/10 text-white text-sm active:bg-[#ff6600]/20 transition-all";
+                btn.className = "w-full text-left p-4 rounded-lg bg-white/10 border border-white/20 text-white text-sm active:bg-[#ff6600] transition-all font-sans";
                 btn.innerText = option;
                 btn.onclick = () => {
                     if (index === q.a) {
@@ -270,7 +287,6 @@
             document.getElementById('medal-panel').classList.remove('hidden');
         }
 
-        // 監聽螢幕旋轉或大小改變，強制修正 AR 視訊比例
         window.addEventListener('resize', () => {
             const video = document.querySelector('video');
             const canvas = document.querySelector('.a-canvas');
