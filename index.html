@@ -14,6 +14,22 @@
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap');
         
         body { margin: 0; overflow: hidden; font-family: 'Orbitron', sans-serif; background: #000; }
+        
+        /* 強制顯示 AR.js 的視訊畫面 */
+        video {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100% !important;
+            height: 100% !important;
+            object-fit: cover;
+            z-index: -2;
+        }
+
+        .a-canvas {
+            z-index: -1;
+        }
+
         .ui-overlay {
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
@@ -27,7 +43,7 @@
         .interactive { pointer-events: auto; }
         .hidden { display: none !important; }
         
-        .aorus-bg { background: rgba(0, 0, 0, 0.9); border: 1px solid #ff6600; box-shadow: 0 0 30px rgba(255, 102, 0, 0.4); }
+        .aorus-bg { background: rgba(0, 0, 0, 0.85); border: 1px solid #ff6600; box-shadow: 0 0 30px rgba(255, 102, 0, 0.4); backdrop-filter: blur(5px); }
         .btn-aorus { 
             background: linear-gradient(135deg, #ff6600 0%, #cc5200 100%); 
             color: white; 
@@ -38,12 +54,20 @@
 
         #landing-page {
             position: fixed;
-            z-index: 200;
+            z-index: 500;
             background: radial-gradient(circle at center, #1a1a1a 0%, #000 100%);
             width: 100%; height: 100%;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
             color: white; padding: 20px;
-            overflow-y: auto;
+        }
+
+        #loading-mask {
+            position: fixed;
+            z-index: 400;
+            background: black;
+            width: 100%; height: 100%;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            color: #ff6600;
         }
 
         #qr-container {
@@ -51,7 +75,6 @@
             padding: 12px;
             border-radius: 8px;
             margin: 20px 0;
-            box-shadow: 0 0 20px rgba(255, 102, 0, 0.2);
         }
 
         #ar-instruction {
@@ -67,11 +90,10 @@
             font-size: 10px; padding: 5px 10px; border-radius: 5px; z-index: 200;
         }
 
-        /* 錯誤提示框 */
         #error-msg {
             position: fixed; top: 20%; left: 10%; width: 80%;
             background: #ff4444; color: white; padding: 15px;
-            border-radius: 10px; z-index: 300; text-align: center;
+            border-radius: 10px; z-index: 600; text-align: center;
             font-size: 14px; display: none;
         }
     </style>
@@ -80,9 +102,16 @@
 
     <div id="error-msg"></div>
 
-    <!-- 測試模式按鈕 -->
-    <button id="test-trigger" class="test-mode-btn interactive hidden" onclick="forceTriggerMarker()">測試模式：模擬偵測成功</button>
+    <!-- 載入中遮罩 -->
+    <div id="loading-mask" class="hidden">
+        <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#ff6600] mb-4"></div>
+        <p class="text-xs tracking-widest uppercase">Initializing Camera...</p>
+    </div>
 
+    <!-- 測試模式按鈕 -->
+    <button id="test-trigger" class="test-mode-btn interactive hidden" onclick="forceTriggerMarker()">測試模式：模擬偵測</button>
+
+    <!-- 登陸頁面 -->
     <div id="landing-page">
         <div class="text-center px-6 max-w-md">
             <div class="mb-6 flex justify-center">
@@ -91,18 +120,17 @@
                 </div>
             </div>
             <h1 class="text-2xl font-bold mb-1 tracking-tighter text-white">GIGABYTE <span class="text-[#ff6600]">STEALTH</span></h1>
-            <p class="text-gray-400 text-[10px] mb-6">隱形組裝 · 極致風流 · AR 互動體驗</p>
+            <p class="text-gray-400 text-[10px] mb-6 tracking-widest uppercase">AR INTERACTIVE CHALLENGE</p>
             
-            <!-- 自動生成的 QR Code -->
             <div class="flex flex-col items-center">
                 <div id="qr-container">
                     <div id="qrcode"></div>
                 </div>
-                <p class="text-[#ff6600] text-[10px] font-bold mb-6 animate-pulse">手機掃描上方 QR Code 開始測試</p>
+                <p class="text-[#ff6600] text-[10px] font-bold mb-6 animate-pulse">請掃描上方 QR Code 開始測試</p>
             </div>
 
             <button id="start-btn" onclick="enterAR()" class="btn-aorus px-10 py-3 rounded-full font-bold text-sm shadow-xl shadow-[#ff6600]/20 interactive w-full">
-                開啟相機挑戰
+                點擊開啟相機
             </button>
             
             <div class="mt-8 text-[9px] text-gray-500">
@@ -111,6 +139,7 @@
         </div>
     </div>
 
+    <!-- UI 層級 -->
     <div id="ui-container" class="ui-overlay hidden">
         <div id="start-screen" class="interactive p-8 aorus-bg rounded-xl text-center max-w-sm mx-4">
             <h2 class="text-xl font-bold text-[#ff6600] mb-4">尋找 STEALTH 標誌</h2>
@@ -142,11 +171,11 @@
         </div>
     </div>
 
-    <!-- AR Scene -->
+    <!-- AR 場景 - 修改初始化參數 -->
     <a-scene 
         embedded 
-        arjs='sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3;'
-        renderer="logarithmicDepthBuffer: true; antialias: true;" 
+        arjs='sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3; trackingMethod: best;'
+        renderer="logarithmicDepthBuffer: true; antialias: true; alpha: true;" 
         vr-mode-ui="enabled: false">
         
         <a-marker preset="hiro" id="stealth-marker">
@@ -200,25 +229,35 @@
             const el = document.getElementById('error-msg');
             el.innerText = msg;
             el.style.display = 'block';
-            setTimeout(() => { el.style.display = 'none'; }, 5000);
+            setTimeout(() => { el.style.display = 'none'; }, 6000);
         }
 
         async function enterAR() {
-            // 嘗試啟動相機權限檢查
+            document.getElementById('loading-mask').classList.remove('hidden');
+            
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-                stream.getTracks().forEach(track => track.stop()); // 僅檢查用，隨即關閉交給 AR.js
+                // 顯式請求媒體權限
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: 'environment' } 
+                });
                 
-                document.getElementById('landing-page').classList.add('hidden');
-                document.getElementById('ui-container').classList.remove('hidden');
-                document.getElementById('ar-instruction').classList.remove('hidden');
-                document.getElementById('test-trigger').classList.remove('hidden');
+                // 停止測試串流，讓 AR.js 重新接管
+                stream.getTracks().forEach(track => track.stop());
                 
-                // 強制觸發一次 resize 確保畫面出來
-                window.dispatchEvent(new Event('resize'));
+                setTimeout(() => {
+                    document.getElementById('loading-mask').classList.add('hidden');
+                    document.getElementById('landing-page').classList.add('hidden');
+                    document.getElementById('ui-container').classList.remove('hidden');
+                    document.getElementById('ar-instruction').classList.remove('hidden');
+                    document.getElementById('test-trigger').classList.remove('hidden');
+                    
+                    // 針對畫布進行修正
+                    window.dispatchEvent(new Event('resize'));
+                }, 1500);
+
             } catch (err) {
-                showError("無法存取相機！請在瀏覽器設定中允許相機權限，並確保使用 HTTPS 連線。");
-                console.error("Camera access denied:", err);
+                document.getElementById('loading-mask').classList.add('hidden');
+                showError("無法存取相機！原因：" + err.message + "\n請確保瀏覽器權限已開啟且網址為 HTTPS。");
             }
         }
 
@@ -233,7 +272,7 @@
         function handleMarkerFound() {
             if (!markerFound) {
                 markerFound = true;
-                document.getElementById('ar-instruction').innerText = "偵測成功！啟動測試中...";
+                document.getElementById('ar-instruction').innerText = "偵測成功！正在載入測驗...";
                 document.getElementById('ar-instruction').style.borderColor = "#4CAF50";
                 document.getElementById('ar-instruction').style.color = "#4CAF50";
                 
@@ -243,7 +282,7 @@
                     document.getElementById('test-trigger').classList.add('hidden');
                     document.getElementById('quiz-screen').classList.remove('hidden');
                     loadQuestion();
-                }, 2000);
+                }, 1800);
             }
         }
 
@@ -281,15 +320,12 @@
             document.getElementById('medal-screen').classList.remove('hidden');
         }
 
-        // 監聽螢幕旋轉或尺寸改變，自動修復 AR 畫布
+        // 當調整視窗大小時，強制同步 A-Frame Canvas 與視訊大小
         window.addEventListener('resize', function() {
-            const scene = document.querySelector('a-scene');
-            if (scene) {
-                const canvas = scene.canvas;
-                if (canvas) {
-                    canvas.style.width = "100%";
-                    canvas.style.height = "100%";
-                }
+            const video = document.querySelector('video');
+            if (video) {
+                video.style.width = window.innerWidth + 'px';
+                video.style.height = window.innerHeight + 'px';
             }
         });
     </script>
